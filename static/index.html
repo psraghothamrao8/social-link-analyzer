@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Social Link Analyzer</title>
+<link rel="stylesheet" href="/static/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.3 7.2 10.6 16M16.7 7.2 13.4 16M7.5 6h9"/></svg>
+    Social Link Analyzer
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-view="graph" aria-selected="true">Graph &amp; routes</button>
+    <button class="tab" role="tab" data-view="watch" aria-selected="false">Watchlist</button>
+    <button class="tab" role="tab" data-view="traction" aria-selected="false">Post traction</button>
+    <button class="tab" role="tab" data-view="bots" aria-selected="false">Bots &amp; coordination</button>
+    <button class="tab" role="tab" data-view="linking" aria-selected="false">Multi-account</button>
+    <button class="tab" role="tab" data-view="regulars" aria-selected="false">Regular posters</button>
+    <button class="tab" role="tab" data-view="data" aria-selected="false">Data sources</button>
+  </nav>
+  <div class="stats" id="stats"></div>
+  <button class="icon-btn" id="themeBtn" title="Toggle light/dark" aria-label="Toggle theme">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+  </button>
+</header>
+
+<main>
+  <!-- ============================================================ 1. GRAPH -->
+  <section class="view active" id="view-graph">
+    <div class="split">
+      <aside class="sidebar stack">
+        <div class="card stack">
+          <h4>Focus</h4>
+          <div class="field"><input class="inp" id="focusInput" list="nodeList" placeholder="Account, r/community or external profile"></div>
+          <div class="row">
+            <label class="field" style="flex:1">Depth
+              <select class="inp" id="depthSel"><option selected>1</option><option>2</option><option>3</option></select></label>
+            <label class="field" style="flex:1">Max nodes
+              <select class="inp" id="maxNodesSel"><option>100</option><option selected>250</option><option>500</option></select></label>
+          </div>
+          <div class="row"><button class="btn primary" id="focusBtn">Focus</button><button class="btn" id="allBtn">Whole graph</button></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h4>Relations (ontology)</h4><span class="sub" title="Hide weak activity/reply edges">min weight
+            <select id="minWeight" class="inp" style="width:auto;padding:2px 4px"><option>1</option><option selected>2</option><option>3</option><option>5</option></select></span></div>
+          <div id="relToggles"></div>
+          <p class="sub" style="margin:8px 0 0">Colour = relation family, line style = relation. Hover an edge for its weight and evidence.</p>
+          <div class="sub" style="margin-top:10px;font-weight:600">Account fill = bot likelihood</div>
+          <div class="legend" style="margin:4px 0 0"><span><i style="background:var(--critical);border-radius:50%"></i>likely automated</span>
+            <span><i style="background:var(--warning);border-radius:50%"></i>suspicious</span><span><i style="background:var(--node);border-radius:50%"></i>human / unknown</span>
+            <span><i style="background:var(--s2);clip-path:polygon(50% 0,100% 100%,0 100%);border-radius:0"></i>coordinated network</span></div>
+        </div>
+        <div class="card stack">
+          <h4>Route finder</h4>
+          <div class="field">From<input class="inp" id="routeFrom" list="nodeList" placeholder="e.g. reddit:gadget_guru_88"></div>
+          <div class="field">To<input class="inp" id="routeTo" list="nodeList" placeholder="e.g. youtube:honestreviews22"></div>
+          <div class="row"><button class="btn primary" id="routeBtn">Find routes</button><button class="btn" id="routeClear">Clear</button></div>
+          <div id="routes"></div>
+        </div>
+        <div class="card stack">
+          <h4>Export (RDF)</h4>
+          <div class="row">
+            <a class="btn small" href="/api/export/ontology.ttl">Ontology .ttl</a>
+            <a class="btn small" id="expTtl" href="/api/export/graph.ttl">Graph .ttl</a>
+            <a class="btn small" id="expJsonld" href="/api/export/graph.jsonld">Graph JSON-LD</a>
+          </div>
+        </div>
+      </aside>
+      <div class="card graph-wrap">
+        <div class="graph-toolbar">
+          <select class="inp" id="layoutSel" style="width:auto"><option value="cose">Force layout</option><option value="concentric">Concentric</option><option value="breadthfirst">Hierarchy</option><option value="circle">Circle</option></select>
+          <button class="btn small" id="fitBtn">Fit</button>
+        </div>
+        <div id="cy" role="img" aria-label="Relationship graph"></div>
+        <div class="graph-meta" id="graphMeta"></div>
+        <div class="card inspector" id="inspector"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ WATCHLIST -->
+  <section class="view" id="view-watch">
+    <div class="split">
+      <aside class="sidebar stack">
+        <div class="card stack">
+          <div class="card-head" style="margin:0"><h4>Watched topics</h4><button class="btn small" id="topicNew">New topic</button></div>
+          <div id="topicList"></div>
+        </div>
+        <div class="card stack" id="topicForm" hidden>
+          <h4 id="topicFormTitle">New topic</h4>
+          <input type="hidden" id="tId">
+          <label class="field">Name<input class="inp" id="tName" placeholder="e.g. Election misinformation"></label>
+          <label class="field">Keywords <span class="muted">comma or newline separated; "quoted phrases"</span><textarea class="inp" id="tKeywords" rows="3"></textarea></label>
+          <label class="field">Websites (domains)<input class="inp" id="tDomains" placeholder="example-news.com, another.org"></label>
+          <label class="field">Subreddits <span class="muted">optional: limit to these</span><input class="inp" id="tCommunities" placeholder="news, worldnews"></label>
+          <div class="row">
+            <label class="field" style="flex:1">Check every<select class="inp" id="tInterval"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="60">1 hour</option><option value="180">3 hours</option></select></label>
+            <label class="check" style="flex:1;margin-top:16px"><input type="checkbox" id="tActive" checked> Monitor on Reddit</label>
+          </div>
+          <div class="row"><button class="btn primary" id="tSave">Save</button><button class="btn" id="tCancel">Cancel</button></div>
+          <p class="sub" style="margin:0">Monitoring needs Reddit API keys. New matching posts are collected with their first commenters, and their score is tracked every 5 minutes for 48 hours.</p>
+        </div>
+        <div class="card stack"><h4>Posts with score tracking</h4><div id="watchedPosts" class="sub">None.</div></div>
+      </aside>
+      <div id="watchOut"><div class="card empty">Create or pick a topic. A topic decides what to monitor; accounts are flagged only for how they behave (automation, coordination, fake engagement), never for the opinion they express.</div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ BOTS & COORDINATION -->
+  <section class="view" id="view-bots">
+    <div class="grid2" style="align-items:start">
+      <div class="card">
+        <div class="card-head"><h2>Bot likelihood</h2><span class="sub" id="botCounts"></span></div>
+        <div class="row" style="margin-bottom:10px">
+          <select class="inp" id="botLabel" style="width:auto"><option value="">All labels</option><option selected>likely automated</option><option>suspicious</option><option>likely human</option><option>insufficient data</option></select>
+          <select class="inp" id="botMin" style="width:auto"><option value="0">any score</option><option value="0.4">score ≥ 0.40</option><option value="0.7">score ≥ 0.70</option></select>
+        </div>
+        <p class="note" style="margin:0 0 10px">The score measures how automated an account's behaviour looks: no daily rest, clockwork timing, instant replies, copy-paste text, link spam, volume, account age. Automated is not the same as malicious (announced utility bots score high), and human-run sock puppets usually score low; check the Multi-account tab for those.</p>
+        <div id="botTable" class="table-scroll"></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="card-head"><h2>Coordinated sharing networks</h2><span class="sub" id="coordSub"></span></div>
+          <div class="row" style="margin-bottom:10px">
+            <label class="field" style="width:auto">Same item within<select class="inp" id="coordWindow"><option value="60">1 min</option><option value="300">5 min</option><option value="600" selected>10 min</option><option value="1800">30 min</option><option value="3600">1 hour</option></select></label>
+            <label class="field" style="width:auto">Repeated at least<select class="inp" id="coordRepeats"><option value="2" selected>2 different items</option><option value="3">3 different items</option><option value="5">5 different items</option></select></label>
+          </div>
+          <div id="networks"></div>
+        </div>
+        <div class="card"><div class="card-head"><h2>Bursts</h2><span class="sub">one link or text pushed by 3+ accounts within the window</span></div><div id="bursts" class="table-scroll"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 2. TRACTION -->
+  <section class="view" id="view-traction">
+    <div class="split">
+      <aside class="sidebar card">
+        <div class="stack">
+          <h4>Posts</h4>
+          <input class="inp" id="postSearch" placeholder="Search title, author or id">
+          <select class="inp" id="postCommunity"><option value="">All communities</option></select>
+        </div>
+        <div class="list" id="postList" style="margin-top:10px"></div>
+      </aside>
+      <div id="tractionOut"><div class="card empty">Pick a post to see how it gained traction and who it targets.</div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 3. LINKING -->
+  <section class="view" id="view-linking">
+    <div class="card">
+      <div class="row" style="align-items:flex-end">
+        <label class="field" style="width:170px">Minimum score
+          <select class="inp" id="minScore"><option value="0.75">0.75 strong</option><option value="0.6">0.60 moderate+</option><option value="0.45" selected>0.45 weak+</option><option value="0.3">0.30 everything</option></select></label>
+        <label class="check"><input type="checkbox" id="crossOnly"> Cross-platform pairs only</label>
+        <button class="btn primary" id="scanBtn">Scan all accounts</button>
+        <span style="flex:1"></span>
+        <label class="field" style="width:280px">Accounts similar to…<input class="inp" id="simInput" list="accountList" placeholder="reddit:username or twitter:handle"></label>
+        <button class="btn" id="simBtn">Find</button>
+      </div>
+      <p class="note" style="margin:12px 0 0">Scores combine writing style (topic-masked), active hours, typing habits, shared threads/communities,
+        interactions, usernames, account age and cross-links, each calibrated against every other pair in the dataset.
+        A high score is a lead to review, not proof: shared devices, households, coworkers and bots built from one template look alike.</p>
+    </div>
+    <div class="grid2" style="margin-top:12px;align-items:start">
+      <div class="stack">
+        <div class="card" id="clusterCard"><div class="card-head"><h2>Operator hypotheses</h2><span class="sub">accounts linked by strong pairs</span></div><div id="clusters" class="empty">Run a scan.</div></div>
+        <div class="card"><div class="card-head"><h2 id="pairsTitle">Linked pairs</h2><span class="sub" id="pairsSub"></span></div><div id="pairs" class="table-scroll"></div></div>
+      </div>
+      <div id="pairDetail"><div class="card empty">Select a pair to see the evidence side by side.</div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 4. REGULARS -->
+  <section class="view" id="view-regulars">
+    <div class="card">
+      <div class="row" style="align-items:flex-end">
+        <label class="field" style="width:220px">Regular in community<select class="inp" id="regCommunity"><option value="">Any community</option></select></label>
+        <label class="field" style="width:170px">Count<select class="inp" id="regBasis"><option value="posts">Posts only</option><option value="all">Posts + comments</option></select></label>
+        <label class="field" style="width:110px">Min items<input class="inp" id="regMin" type="number" value="8" min="2"></label>
+        <label class="field" style="width:150px">Min regularity<select class="inp" id="regScore"><option value="0.3">0.30</option><option value="0.45" selected>0.45</option><option value="0.6">0.60</option></select></label>
+        <button class="btn primary" id="regBtn">Find regular posters</button>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:12px;align-items:start;grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
+      <div class="card"><div class="card-head"><h2>Regular posters</h2><span class="sub" id="regSub"></span></div><div id="regTable" class="table-scroll"></div></div>
+      <div class="card"><div class="card-head"><h2>Where else they are active</h2><span class="sub">share of the listed regulars</span></div><div id="regShared"></div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 5. DATA -->
+  <section class="view" id="view-data">
+    <div class="grid2" style="align-items:start">
+      <div class="stack">
+        <div class="card stack">
+          <div class="card-head"><h2>Dataset</h2><span class="sub" id="apiMode"></span></div>
+          <div class="row"><button class="btn primary" id="demoBtn">Load demo dataset</button><button class="btn" id="resetBtn">Clear database</button></div>
+          <p class="sub" style="margin:0">The demo is synthetic: invented accounts with a planted sock-puppet ring, a boosted post, scheduled posters and a linked Twitter account.</p>
+        </div>
+        <div class="card stack">
+          <h2>Collect from Reddit</h2>
+          <div class="row" style="align-items:flex-end">
+            <label class="field" style="flex:2">User<input class="inp" id="cUser" placeholder="username"></label>
+            <label class="field" style="flex:1">Items<input class="inp" id="cUserLimit" type="number" value="300"></label>
+            <button class="btn" data-collect="user">Collect</button>
+          </div>
+          <div class="row" style="align-items:flex-end">
+            <label class="field" style="flex:2">Post URL or id<input class="inp" id="cPost" placeholder="https://www.reddit.com/r/.../comments/abc123/..."></label>
+            <label class="field" style="flex:1" title="Fetch the history of the earliest N commenters (needed for audience and alt analysis)">Commenter histories<input class="inp" id="cPostExpand" type="number" value="10"></label>
+            <button class="btn" data-collect="post">Collect</button>
+          </div>
+          <div class="row" style="align-items:flex-end">
+            <label class="field" style="flex:2">Subreddit<input class="inp" id="cSub" placeholder="buildapc"></label>
+            <label class="field" style="flex:1">Posts<input class="inp" id="cSubLimit" type="number" value="100"></label>
+            <label class="field" style="flex:1" title="Fetch histories of the most frequent posters">Poster histories<input class="inp" id="cSubExpand" type="number" value="10"></label>
+            <button class="btn" data-collect="subreddit">Collect</button>
+          </div>
+          <p class="sub" style="margin:0">Uses Reddit's API (OAuth when <code>REDDIT_CLIENT_ID</code>/<code>REDDIT_CLIENT_SECRET</code> are set). Reddit returns at most ~1000 recent items per listing; import an archive for older history.</p>
+        </div>
+        <div class="card stack">
+          <h2>Import other platforms or archives</h2>
+          <input type="file" id="importFile" accept=".json,.ndjson,.jsonl,.txt">
+          <p class="sub" style="margin:0">Generic JSON (<code>accounts / posts / comments / links</code> for any platform: Twitter/X, Mastodon, YouTube…) or Reddit NDJSON dumps (Pushshift / Arctic Shift). See <code>samples/</code>.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card stack">
+          <h2>Confirmed identity links</h2>
+          <p class="sub" style="margin:0">Record links you have verified (e.g. a profile that names its Reddit account). They become <code>sameAs</code> edges and route through the graph.</p>
+          <div class="row" style="align-items:flex-end">
+            <label class="field" style="flex:1">Account A<input class="inp" id="lA" list="accountList" placeholder="reddit:name"></label>
+            <label class="field" style="flex:1">Account B<input class="inp" id="lB" list="accountList" placeholder="twitter:name"></label>
+          </div>
+          <div class="row" style="align-items:flex-end">
+            <label class="field" style="flex:1">Relation<select class="inp" id="lRel"><option value="sameAs">sameAs (confirmed)</option><option value="possibleSameOperator">possibleSameOperator</option></select></label>
+            <label class="field" style="flex:2">Note / source<input class="inp" id="lNote" placeholder="how you verified it"></label>
+            <button class="btn" id="linkAdd">Add</button>
+          </div>
+          <div id="linkList"></div>
+        </div>
+        <div class="card stack"><h2>Activity log</h2><pre class="log" id="log"></pre></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<aside class="drawer" id="drawer" aria-label="Account profile"></aside>
+<datalist id="nodeList"></datalist>
+<datalist id="accountList"></datalist>
+<div id="tip"></div>
+<div id="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+{"id": "abc111", "author": "example_handle", "subreddit": "homelab", "title": "My 3-node proxmox cluster", "selftext": "Specs in the comments. Cable management is a nightmare tbh.", "url": "https://www.reddit.com/r/homelab/comments/abc111/", "created_utc": 1790100000, "score": 240, "num_comments": 2, "permalink": "/r/homelab/comments/abc111/my_3node_proxmox_cluster/"}
+{"id": "def222", "author": "another_user", "subreddit": "homelab", "body": "What are the thermals like?", "link_id": "t3_abc111", "parent_id": "t3_abc111", "created_utc": 1790100600, "score": 5}
+{"id": "ghi333", "author": "example_handle", "subreddit": "homelab", "body": "Fine so far, around 55C under load.", "link_id": "t3_abc111", "parent_id": "t1_def222", "created_utc": 1790101200, "score": 7}

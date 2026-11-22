@@ -1,0 +1,23 @@
+{
+  "accounts": [
+    {"platform": "twitter", "username": "example_handle", "created_utc": 1700000000,
+     "bio": "Posting about home labs. Also reddit.com/u/example_handle and github.com/example-handle"},
+    {"platform": "mastodon", "username": "example@fosstodon.org", "created_utc": 1710000000, "bio": ""}
+  ],
+  "communities": [
+    {"platform": "twitter", "name": "#homelab"}
+  ],
+  "posts": [
+    {"platform": "twitter", "id": "1790000000000000001", "author": "example_handle", "community": "#homelab",
+     "title": "", "body": "Finally racked the new switch. Cable management is a nightmare tbh.", "created_utc": 1790000000, "score": 12},
+    {"platform": "twitter", "id": "1790000000000000002", "author": "example_handle", "community": "#homelab",
+     "title": "", "body": "Anyone running proxmox on mini PCs? Thinking about a 3-node cluster.", "created_utc": 1790090000, "score": 4}
+  ],
+  "comments": [
+    {"platform": "twitter", "id": "1790000000000000003", "author": "example@fosstodon.org", "post_id": "1790000000000000002",
+     "parent_id": "1790000000000000002", "body": "Works fine, watch the thermals.", "created_utc": 1790091000}
+  ],
+  "links": [
+    {"a": "twitter:example_handle", "b": "reddit:example_handle", "relation": "sameAs", "note": "Twitter bio names the Reddit account"}
+  ]
+}
